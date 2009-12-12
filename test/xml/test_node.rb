@@ -10,6 +10,39 @@ module Nokogiri
         @xml = Nokogiri::XML(File.read(XML_FILE), XML_FILE)
       end
 
+      def test_parse
+        list = @xml.root.parse('fooooooo <hello />')
+        assert_equal 2, list.length
+      end
+
+      def test_parse_with_block
+        called = false
+        list = @xml.root.parse('<hello />') { |cfg|
+          called = true
+          assert_instance_of Nokogiri::XML::ParseOptions, cfg
+        }
+        assert called, 'config block called'
+        assert_equal 1, list.length
+      end
+
+      def test_parse_with_io
+        list = @xml.root.parse(StringIO.new('<hello />'))
+        assert_equal 1, list.length
+        assert_equal 'hello', list.first.name
+      end
+
+      def test_parse_with_empty_string
+        list = @xml.root.parse('')
+        assert_equal 0, list.length
+      end
+
+      def test_parse_error_list
+        error_count = @xml.errors.length
+        list = @xml.root.parse('<hello>')
+        assert_equal 0, list.length
+        assert(error_count < @xml.errors.length, 'errors have increased')
+      end
+
       def test_gt_string_arg
         node = @xml.at('employee')
         nodes = (node > 'name')
@@ -17,15 +50,60 @@ module Nokogiri
         assert_equal node, nodes.first.parent
       end
 
-      def test_next_element
-        node = @xml.at('name')
+      def test_next_element_when_next_sibling_is_element_should_return_next_sibling
+        doc = Nokogiri::XML "<root><foo /><quux /></root>"
+        node         = doc.at_css("foo")
         next_element = node.next_element
         assert next_element.element?
-        assert_equal 'position', next_element.name
+        assert_equal doc.at_css("quux"), next_element
       end
 
-      def test_next_element_nil
-        assert_nil @xml.root.next_element
+      def test_next_element_when_there_is_no_next_sibling_should_return_nil
+        doc = Nokogiri::XML "<root><foo /><quux /></root>"
+        assert_nil doc.at_css("quux").next_element
+      end
+
+      def test_next_element_when_next_sibling_is_not_an_element_should_return_closest_next_element_sibling
+        doc = Nokogiri::XML "<root><foo />bar<quux /></root>"
+        node         = doc.at_css("foo")
+        next_element = node.next_element
+        assert next_element.element?
+        assert_equal doc.at_css("quux"), next_element
+      end
+
+      def test_next_element_when_next_sibling_is_not_an_element_and_no_following_element_should_return_nil
+        doc = Nokogiri::XML "<root><foo />bar</root>"
+        node         = doc.at_css("foo")
+        next_element = node.next_element
+        assert_nil next_element
+      end
+
+      def test_previous_element_when_previous_sibling_is_element_should_return_previous_sibling
+        doc = Nokogiri::XML "<root><foo /><quux /></root>"
+        node             = doc.at_css("quux")
+        previous_element = node.previous_element
+        assert previous_element.element?
+        assert_equal doc.at_css("foo"), previous_element
+      end
+
+      def test_previous_element_when_there_is_no_previous_sibling_should_return_nil
+        doc = Nokogiri::XML "<root><foo /><quux /></root>"
+        assert_nil doc.at_css("foo").previous_element
+      end
+
+      def test_previous_element_when_previous_sibling_is_not_an_element_should_return_closest_previous_element_sibling
+        doc = Nokogiri::XML "<root><foo />bar<quux /></root>"
+        node             = doc.at_css("quux")
+        previous_element = node.previous_element
+        assert previous_element.element?
+        assert_equal doc.at_css("foo"), previous_element
+      end
+
+      def test_previous_element_when_previous_sibling_is_not_an_element_and_no_following_element_should_return_nil
+        doc = Nokogiri::XML "<root>foo<bar /></root>"
+        node             = doc.at_css("bar")
+        previous_element = node.previous_element
+        assert_nil previous_element
       end
 
       def test_element?

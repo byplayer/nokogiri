@@ -108,6 +108,22 @@ module Nokogiri
         assert_equal "<div>b</div>", fragment.to_s
       end
 
+      def test_html_fragment_with_leading_text_and_newline
+        fragment = HTML::Document.new.fragment("First line\nSecond line<br>Broken line")
+        assert_equal fragment.to_s, "First line\nSecond line<br>Broken line"
+      end
+
+      def test_html_fragment_with_leading_whitespace_and_text_and_newline
+        fragment = HTML::Document.new.fragment("  First line\nSecond line<br>Broken line")
+        assert_equal "First line\nSecond line<br>Broken line", fragment.to_s
+      end
+
+      def test_html_fragment_with_leading_entity
+        failed = "&quot;test<br/>test&quot;"
+        fragment = Nokogiri::HTML::DocumentFragment.parse(failed)
+        assert_equal '"test<br>test"', fragment.to_html
+      end
+
       def test_to_s
         doc = "<span>foo<br></span><span>bar</span>"
         fragment = Nokogiri::HTML::Document.new.fragment(doc)
@@ -149,7 +165,6 @@ module Nokogiri
         assert_equal("<p>hello<!-- your ad here --></p>",
           fragment.to_s)
       end
-
     end
   end
 end
