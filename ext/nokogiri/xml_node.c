@@ -387,7 +387,27 @@ static VALUE next_element(VALUE self)
   while(sibling && sibling->type != XML_ELEMENT_NODE)
     sibling = sibling->next;
 
-  return Nokogiri_wrap_xml_node(Qnil, sibling) ;
+  return sibling ? Nokogiri_wrap_xml_node(Qnil, sibling) : Qnil ;
+}
+
+/*
+ * call-seq:
+ *  previous_element
+ *
+ * Returns the previous Nokogiri::XML::Element type sibling node.
+ */
+static VALUE previous_element(VALUE self)
+{
+  xmlNodePtr node, sibling;
+  Data_Get_Struct(self, xmlNode, node);
+
+  sibling = node->prev;
+  if(!sibling) return Qnil;
+
+  while(sibling && sibling->type != XML_ELEMENT_NODE)
+    sibling = sibling->prev;
+
+  return sibling ? Nokogiri_wrap_xml_node(Qnil, sibling) : Qnil ;
 }
 
 /* :nodoc: */
@@ -911,6 +931,39 @@ static VALUE compare(VALUE self, VALUE _other)
   return INT2NUM((long)xmlXPathCmpNodes(other, node));
 }
 
+static VALUE in_context(VALUE self, VALUE _str, VALUE _options)
+{
+  xmlNodePtr node;
+  Data_Get_Struct(self, xmlNode, node);
+
+  xmlNodePtr list;
+
+  VALUE doc = DOC_RUBY_OBJECT(node->doc);
+  VALUE err = rb_iv_get(doc, "@errors");
+
+  xmlSetStructuredErrorFunc((void *)err, Nokogiri_error_array_pusher);
+
+  xmlParserErrors x = xmlParseInNodeContext(
+      node,
+      StringValuePtr(_str),
+      RSTRING_LEN(_str),
+      NUM2INT(_options),
+      &list);
+
+  xmlSetStructuredErrorFunc(NULL, NULL);
+
+  xmlNodeSetPtr set = xmlXPathNodeSetCreate(NULL);
+
+  while(list) {
+    xmlXPathNodeSetAdd(set, list);
+    // FIXME!!!  Is this thing leaking memory?
+    //NOKOGIRI_ROOT_NODE(list);
+    list = list->next;
+  }
+
+  return Nokogiri_wrap_xml_node_set(set);
+}
+
 VALUE Nokogiri_wrap_xml_node(VALUE klass, xmlNodePtr node)
 {
   assert(node);
@@ -1021,6 +1074,7 @@ void init_xml_node()
   rb_define_method(klass, "next_sibling", next_sibling, 0);
   rb_define_method(klass, "previous_sibling", previous_sibling, 0);
   rb_define_method(klass, "next_element", next_element, 0);
+  rb_define_method(klass, "previous_element", previous_element, 0);
   rb_define_method(klass, "node_type", node_type, 0);
   rb_define_method(klass, "content", get_content, 0);
   rb_define_method(klass, "path", path, 0);
@@ -1043,6 +1097,7 @@ void init_xml_node()
   rb_define_method(klass, "pointer_id", pointer_id, 0);
   rb_define_method(klass, "line", line, 0);
 
+  rb_define_private_method(klass, "in_context", in_context, 2);
   rb_define_private_method(klass, "add_child_node", add_child, 1);
   rb_define_private_method(klass, "add_previous_sibling_node", add_previous_sibling, 1);
   rb_define_private_method(klass, "add_next_sibling_node", add_next_sibling, 1);

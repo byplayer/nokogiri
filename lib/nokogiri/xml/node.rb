@@ -275,6 +275,13 @@ module Nokogiri
 
       alias :next           :next_sibling
       alias :previous       :previous_sibling
+
+      # :stopdoc:
+      # HACK: This is to work around an RDoc bug
+      alias :next=          :add_next_sibling
+      # :startdoc:
+
+      alias :previous=      :add_previous_sibling
       alias :remove         :unlink
       alias :get_attribute  :[]
       alias :attr           :[]
@@ -374,6 +381,25 @@ module Nokogiri
       def fragment tags # :nodoc:
         # TODO: deprecate?
         document.fragment(tags)
+      end
+
+      ###
+      # Parse +string_or_io+ as a document fragment within the context of
+      # *this* node.  Returns a XML::NodeSet containing the nodes parsed from
+      # +string_or_io+.
+      def parse string_or_io, options = ParseOptions::DEFAULT_XML
+        if Fixnum === options
+          options = Nokogiri::XML::ParseOptions.new(options)
+        end
+        # Give the options to the user
+        yield options if block_given?
+
+        contents = string_or_io.respond_to?(:read) ?
+          string_or_io.read :
+          string_or_io
+
+        return Nokogiri::XML::NodeSet.new(document) if contents.empty?
+        in_context(contents, options.to_i)
       end
 
       ####

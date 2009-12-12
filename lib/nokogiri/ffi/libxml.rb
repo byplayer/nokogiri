@@ -8,7 +8,7 @@ module Nokogiri
       libs = ["libxml2.dll", "libxslt.dll", "libexslt.dll"].collect do |lib|
         File.join(dll_dir, lib).tr("/","\\") # see http://jira.codehaus.org/browse/JRUBY-2763
       end + ["msvcrt"]
-      ffi_lib *libs
+      ffi_lib(*libs)
     else
       ffi_lib 'xml2', 'xslt', 'exslt'
     end
@@ -144,7 +144,7 @@ module Nokogiri
     attach_function :xmlGetIntSubset, [:pointer], :pointer
     attach_function :xmlBufferCreate, [], :pointer
     attach_function :xmlBufferFree, [:pointer], :void
-    attach_function :xmlSplitQName2, [:string, :pointer], :pointer # returns char* that must be freed
+    attach_function :xmlSplitQName2, [:string, :buffer_out], :pointer # returns char* that must be freed
     attach_function :xmlNewDocProp, [:pointer, :string, :string], :pointer
     attach_function :xmlFreePropList, [:pointer], :void
     attach_function :xmlCreateIntSubset, [:pointer] * 4, :pointer
@@ -258,7 +258,7 @@ module Nokogiri
     attach_function :xsltParseStylesheetDoc, [:pointer], :pointer
     attach_function :xsltFreeStylesheet, [:pointer], :void
     attach_function :xsltApplyStylesheet, [:pointer, :pointer, :pointer], :pointer
-    attach_function :xsltSaveResultToString, [:pointer, :pointer, :pointer, :pointer], :int
+    attach_function :xsltSaveResultToString, [:buffer_out, :buffer_out, :pointer, :pointer], :int
     attach_function :xsltSetGenericErrorFunc, [:pointer, :generic_error_handler], :void
 
     # exslt.c
@@ -294,8 +294,9 @@ module Nokogiri
     attach_function :xmlSwitchEncoding, [:pointer, :int], :void
 
     # helpers
+    POINTER_SIZE = FFI.type_size(:pointer)
     def self.pointer_offset(n)
-      n * FFI.type_size(:pointer) # byte offset of nth pointer in an array of pointers
+      n * POINTER_SIZE # byte offset of nth pointer in an array of pointers
     end
   end
 end
