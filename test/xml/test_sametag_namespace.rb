@@ -12,16 +12,18 @@ module Nokogiri
                   </header:Header>
                 </test>
               eoxml
+        @xml_ns = {}
+        @xml_doc.traverse { |d| @xml_ns.merge! d.namespaces }
       end
 
       def test_namespaces
         assert_equal('http://api.rakuten.co.jp/rws/rest/Header',
-                     @xml_doc.namespaces['xmlns:header'])
+                     @xml_ns['xmlns:header'])
       end
 
       def test_xpath
         assert_equal('abc', @xml_doc.xpath('/test/header:Header/value',
-                                           @xml_doc.namespaces)[0].content)
+                                           @xml_ns)[0].content)
       end
     end
   end
